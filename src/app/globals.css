@@ -145,3 +145,26 @@
   transition-duration: 0.2s;
   transition-timing-function: ease;
 }
+
+/* iOS safe area support for notch / home indicator */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Prevent text selection on UI controls for app-like feel on mobile */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scrolling on mobile */
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}

@@ -188,7 +188,8 @@ export function AuthScreen({ onSuccess }: { onSuccess: (user: CurrentUser) => vo
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="reg-password">Password</Label>
-                      <Input id="reg-password" name="password" type="password" placeholder="••••••••" required />
+                      <Input id="reg-password" name="password" type="password" placeholder="At least 6 characters" required />
+                      <p className="text-[11px] text-muted-foreground">Min 6 characters</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="reg-confirm">Confirm Password</Label>
@@ -198,6 +199,9 @@ export function AuthScreen({ onSuccess }: { onSuccess: (user: CurrentUser) => vo
                       {loading === "register" ? "Creating account..." : "Create Account"}
                       {loading !== "register" && <ArrowRight className="ml-2 w-4 h-4" />}
                     </Button>
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Your account starts fresh — add your own transactions
+                    </p>
                   </form>
                 </TabsContent>
               </Tabs>
@@ -221,7 +225,7 @@ export function AuthScreen({ onSuccess }: { onSuccess: (user: CurrentUser) => vo
                 {loading === "demo" ? "Loading demo..." : "Try Demo Account"}
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-3">
-                Demo account comes pre-loaded with sample data
+                Demo comes pre-loaded with sample data to explore
               </p>
             </CardContent>
           </Card>

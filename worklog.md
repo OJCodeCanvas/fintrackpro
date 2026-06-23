@@ -135,3 +135,32 @@ Artifacts:
 - New lib: src/lib/recurring.ts
 - New components: src/components/currency-selector.tsx, src/components/views/{recurring,goals,bills,accounts,insights}-view.tsx
 - Updated: prisma/schema.prisma, src/lib/{api-auth,types,store,seed}.ts, src/app/api/{auth/*,transactions/*}, src/components/{app-shell,views/reports-view,views/transactions-view}.tsx, src/app/page.tsx
+
+---
+Task ID: pwa-and-real-signup
+Agent: main (Z.ai Code)
+Task: Add real email signup without sample data (fresh start) + make the app installable as a PWA on Android and iPhone.
+
+Work Log:
+- Modified `/api/auth/register` to only call `ensureDefaultCategories` (no `seedSampleData`) — real signups start with an empty account. Added password min-length (6) validation.
+- Updated the auth screen: signup form now shows "Min 6 characters" hint, "Your account starts fresh — add your own transactions" note, and demo button copy clarifies "Demo comes pre-loaded with sample data to explore".
+- Generated PWA app icons from an SVG (emerald gradient + wallet + trend arrow + $): 192px, 256px, 384px, 512px PNGs, a 180px apple-touch-icon, a 512px maskable icon, and a 32px favicon — all via sharp.
+- Created `public/manifest.json` (name, short_name, description, start_url, display: standalone, theme_color #10b981, background_color, 5 icons including maskable, app shortcuts).
+- Created `public/sw.js` service worker: pre-caches app shell on install, network-first for navigations + API calls (so data is always fresh), cache-first for static assets, cleans old caches on activate.
+- Updated `src/app/layout.tsx` metadata: manifest link, appleWebApp config (capable, statusBarStyle black-translucent, title FinTrack), icons (favicon + 192 + 512 + apple-touch-icon), formatDetection. Added `viewport` export with themeColor (light/dark), viewportFit: cover for notch.
+- Created `src/components/sw-register.tsx` — registers the service worker on mount (works in dev + prod).
+- Created `src/components/install-prompt.tsx` — detects standalone mode + iOS, listens for `beforeinstallprompt` (Android/Chrome), shows a floating "Install FinTrack" banner after a delay (3s Android / 5s iOS), dismissible for 7 days. On iOS, opens a bottom Sheet with 3-step instructions (Share → Add to Home Screen → Add). Respects safe-area-inset for notch.
+- Added iOS safe-area-inset padding, tap-highlight removal, and text-size-adjust to globals.css for a native-app feel on mobile.
+
+Stage Summary (Agent-Browser verified):
+- Real signup: created "Test User" with testuser@example.com → dashboard shows $0.00 balance, $0.00 income, $0.00 expenses, "No transactions yet. Add your first one!" Categories view shows 15 default categories (10 expense + 5 income). Accounts view shows "0 accounts / No accounts yet". Confirmed: fresh account, no sample data.
+- PWA installability: manifest.json served at /manifest.json, service worker registered + activated (1 registration, activated state), all icons served (200 OK). HTML head includes rel=manifest, apple-mobile-web-app-title, apple-mobile-web-app-status-bar-style, apple-touch-icon, theme-color (light/dark).
+- Install prompt: "Install FinTrack" floating banner appeared with "Quick access from your home screen" + Install + dismiss buttons.
+- Mobile (390×844): hamburger menu opens drawer with all nav sections (Dashboard, Transactions, PLANNING, MANAGE, INSIGHTS). Install banner respects safe area.
+- `bun run lint` passes clean (0 errors). Dev server runs with no runtime errors.
+
+Artifacts:
+- New API: src/app/api/auth/register/route.ts (modified — no sample data)
+- New public assets: public/{manifest.json, sw.js, icon-192x192.png, icon-256x256.png, icon-384x384.png, icon-512x512.png, icon-maskable-512x512.png, apple-touch-icon.png, favicon-32.png, icon.svg}
+- New components: src/components/{sw-register,install-prompt}.tsx
+- Updated: src/app/layout.tsx (PWA metadata + viewport), src/app/globals.css (safe-area + mobile UX), src/components/auth-screen.tsx (signup copy)
