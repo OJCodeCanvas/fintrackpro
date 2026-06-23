@@ -15,6 +15,11 @@ import {
   LogOut,
   Menu,
   X,
+  Repeat,
+  Flag,
+  Receipt,
+  Landmark,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,13 +35,38 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { CurrencySelector } from "@/components/currency-selector";
 
-const navItems: Array<{ id: View; label: string; icon: any }> = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "transactions", label: "Transactions", icon: ArrowLeftRight },
-  { id: "categories", label: "Categories", icon: Tags },
-  { id: "budgets", label: "Budgets", icon: Target },
-  { id: "reports", label: "Reports", icon: BarChart3 },
+const navSections: Array<{ title?: string; items: Array<{ id: View; label: string; icon: any }> }> = [
+  {
+    items: [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { id: "transactions", label: "Transactions", icon: ArrowLeftRight },
+    ],
+  },
+  {
+    title: "Planning",
+    items: [
+      { id: "budgets", label: "Budgets", icon: Target },
+      { id: "recurring", label: "Recurring", icon: Repeat },
+      { id: "bills", label: "Bills", icon: Receipt },
+      { id: "goals", label: "Goals", icon: Flag },
+    ],
+  },
+  {
+    title: "Manage",
+    items: [
+      { id: "categories", label: "Categories", icon: Tags },
+      { id: "accounts", label: "Accounts", icon: Landmark },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      { id: "reports", label: "Reports", icon: BarChart3 },
+      { id: "insights", label: "AI Insights", icon: Sparkles },
+    ],
+  },
 ];
 
 export function AppShell({ user, children }: { user: CurrentUser; children: React.ReactNode }) {
@@ -70,34 +100,51 @@ export function AppShell({ user, children }: { user: CurrentUser; children: Reac
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const active = view === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                setView(item.id);
-                setMobileOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group ${
-                active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              {active && (
-                <motion.div
-                  layoutId="activeNav"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
-                />
-              )}
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </button>
-          );
-        })}
+      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-thin">
+        {navSections.map((section, sIdx) => (
+          <div key={sIdx} className="space-y-1">
+            {section.title && (
+              <div className="px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1">
+                {section.title}
+              </div>
+            )}
+            {section.items.map((item) => {
+              const active = view === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setView(item.id);
+                    setMobileOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative group ${
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="activeNav"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
+                    />
+                  )}
+                  <item.icon className="w-4 h-4" />
+                  {item.label}
+                  {item.id === "insights" && (
+                    <Sparkles className="w-3 h-3 ml-auto text-emerald-500" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
+
+      {/* Currency selector */}
+      <div className="px-3 py-2 border-t border-sidebar-border">
+        <CurrencySelector />
+      </div>
 
       {/* User */}
       <div className="p-3 border-t border-sidebar-border">

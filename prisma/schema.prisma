@@ -16,12 +16,17 @@ model User {
   name      String
   password  String
   isDemo    Boolean  @default(false)
+  currency  String   @default("USD")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   transactions Transaction[]
   categories   Category[]
   budgets      Budget[]
+  recurring    Recurring[]
+  accounts     Account[]
+  goals        Goal[]
+  bills        Bill[]
 }
 
 model Category {
@@ -38,6 +43,7 @@ model Category {
 
   transactions Transaction[]
   budgets      Budget[]
+  recurring    Recurring[]
 }
 
 model Transaction {
@@ -46,6 +52,8 @@ model Transaction {
   type         String // "income" | "expense"
   categoryId   String
   category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  accountId    String?
+  account      Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
   date         DateTime
   notes        String   @default("")
   tags         String   @default("") // comma-separated
@@ -57,6 +65,7 @@ model Transaction {
   @@index([userId, date])
   @@index([userId, type])
   @@index([userId, categoryId])
+  @@index([userId, accountId])
 }
 
 model Budget {
@@ -73,4 +82,88 @@ model Budget {
 
   @@unique([userId, categoryId, month, year])
   @@index([userId, month, year])
+}
+
+// Recurring transaction template — generates Transaction rows on schedule
+model Recurring {
+  id           String   @id @default(cuid())
+  amount       Float
+  type         String // "income" | "expense"
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  accountId    String?
+  account      Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  frequency    String   @default("monthly") // daily | weekly | monthly | yearly
+  dayOfMonth   Int? // for monthly (1-31)
+  dayOfWeek    Int? // for weekly (0-6, 0=Sun)
+  startDate    DateTime
+  nextDate     DateTime
+  endDate      DateTime?
+  isActive     Boolean  @default(true)
+  notes        String   @default("")
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, isActive])
+  @@index([nextDate])
+}
+
+// Wallet / account — a transaction can belong to one account
+model Account {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   @default("checking") // checking | savings | credit | cash | investment
+  balance     Float    @default(0)
+  color       String   @default("#10b981")
+  icon        String   @default("Wallet")
+  currency    String   @default("USD")
+  isDefault   Boolean  @default(false)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+  recurring    Recurring[]
+
+  @@index([userId])
+}
+
+// Savings goal — track progress toward a target
+model Goal {
+  id             String   @id @default(cuid())
+  name           String
+  targetAmount   Float
+  currentAmount  Float    @default(0)
+  color          String   @default("#10b981")
+  icon           String   @default("Target")
+  targetDate     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Bill reminder — upcoming bills with due date + paid status
+model Bill {
+  id          String   @id @default(cuid())
+  name        String
+  amount      Float
+  dueDate     DateTime
+  isPaid      Boolean  @default(false)
+  isRecurring Boolean  @default(false)
+  categoryId  String?
+  accountId   String?
+  notes       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueDate])
+  @@index([userId, isPaid])
 }

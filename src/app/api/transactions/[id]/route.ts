@@ -12,7 +12,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await req.json();
-    const { amount, type, categoryId, date, notes, tags } = body;
+    const { amount, type, categoryId, accountId, date, notes, tags } = body;
 
     const existing = await db.transaction.findFirst({
       where: { id, userId: user.id },
@@ -30,17 +30,47 @@ export async function PUT(
       }
     }
 
+    // Handle account reassignment + balance adjustment
+    if (accountId !== undefined) {
+      const newAmount = amount !== undefined ? parseFloat(amount) : existing.amount;
+      const newType = type || existing.type;
+      const delta = newType === "income" ? newAmount : -newAmount;
+
+      // Reverse the old account balance
+      if (existing.accountId) {
+        const oldDelta = existing.type === "income" ? -existing.amount : existing.amount;
+        await db.account.update({
+          where: { id: existing.accountId },
+          data: { balance: { increment: oldDelta } },
+        });
+      }
+      // Apply to new account
+      if (accountId) {
+        const account = await db.account.findFirst({
+          where: { id: accountId, userId: user.id },
+        });
+        if (!account) {
+          return NextResponse.json({ error: "Invalid account" }, { status: 400 });
+        }
+        await db.account.update({
+          where: { id: accountId },
+          data: { balance: { increment: delta } },
+        });
+      }
+    }
+
     const transaction = await db.transaction.update({
       where: { id },
       data: {
         amount: amount !== undefined ? parseFloat(amount) : undefined,
         type: type || undefined,
         categoryId: categoryId || undefined,
+        accountId: accountId !== undefined ? (accountId || null) : undefined,
         date: date ? new Date(date) : undefined,
         notes: notes !== undefined ? notes : undefined,
         tags: tags !== undefined ? tags : undefined,
       },
-      include: { category: true },
+      include: { category: true, account: true },
     });
 
     return NextResponse.json({ transaction });
@@ -64,6 +94,15 @@ export async function DELETE(
     });
     if (!existing) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    }
+
+    // Reverse account balance before deleting
+    if (existing.accountId) {
+      const delta = existing.type === "income" ? -existing.amount : existing.amount;
+      await db.account.update({
+        where: { id: existing.accountId },
+        data: { balance: { increment: delta } },
+      });
     }
 
     await db.transaction.delete({ where: { id } });

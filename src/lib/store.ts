@@ -2,13 +2,24 @@
 
 import { create } from "zustand";
 
-export type View = "dashboard" | "transactions" | "categories" | "budgets" | "reports";
+export type View =
+  | "dashboard"
+  | "transactions"
+  | "categories"
+  | "budgets"
+  | "reports"
+  | "recurring"
+  | "goals"
+  | "bills"
+  | "accounts"
+  | "insights";
 
 export interface CurrentUser {
   id: string;
   email: string;
   name: string;
   isDemo: boolean;
+  currency: string;
 }
 
 interface AppState {

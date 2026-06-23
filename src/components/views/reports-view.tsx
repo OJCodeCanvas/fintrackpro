@@ -18,34 +18,44 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, Wallet, Calendar, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Calendar, Download, Filter } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/api-client";
-import { Summary, Transaction } from "@/lib/types";
+import { Summary, Category, Account } from "@/lib/types";
 import { formatCurrency, formatCompact } from "@/lib/format";
 import { useAppStore } from "@/lib/store";
+import { toast } from "sonner";
 
 export function ReportsView() {
   const { currency } = useAppStore();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: summary, isLoading } = useQuery<Summary>({
     queryKey: ["summary", year],
     queryFn: () => apiFetch<Summary>(`/api/reports/summary?year=${year}`),
   });
 
-  const { data: txData } = useQuery<{ transactions: Transaction[] }>({
-    queryKey: ["transactions", "year", year],
-    queryFn: () => {
-      const start = new Date(year, 0, 1).toISOString();
-      const end = new Date(year, 11, 31, 23, 59, 59).toISOString();
-      return apiFetch<{ transactions: Transaction[] }>(
-        `/api/transactions?startDate=${start}&endDate=${end}&limit=10000`
-      );
-    },
+  const { data: catData } = useQuery<{ categories: Category[] }>({
+    queryKey: ["categories"],
+    queryFn: () => apiFetch<{ categories: Category[] }>("/api/categories"),
+  });
+  const { data: accData } = useQuery<{ accounts: Account[] }>({
+    queryKey: ["accounts"],
+    queryFn: () => apiFetch<{ accounts: Account[] }>("/api/accounts"),
   });
 
   if (isLoading || !summary) {
@@ -67,27 +77,6 @@ export function ReportsView() {
   const avgMonthlyExpense = summary.yearTotals.expense / 12;
   const avgMonthlyIncome = summary.yearTotals.income / 12;
 
-  const exportCSV = () => {
-    if (!txData?.transactions) return;
-    const headers = ["Date", "Type", "Category", "Amount", "Notes", "Tags"];
-    const rows = txData.transactions.map((t) => [
-      t.date.split("T")[0],
-      t.type,
-      t.category.name,
-      t.amount.toFixed(2),
-      `"${t.notes.replace(/"/g, '""')}"`,
-      `"${t.tags}"`,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `fintrack-transactions-${year}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -107,7 +96,7 @@ export function ReportsView() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={exportCSV}>
+          <Button variant="outline" onClick={() => setExportOpen(true)}>
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>
         </div>
@@ -289,7 +278,158 @@ export function ReportsView() {
           )}
         </CardContent>
       </Card>
+
+      {/* Export dialog */}
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        categories={catData?.categories || []}
+        accounts={accData?.accounts || []}
+      />
     </div>
+  );
+}
+
+function ExportDialog({
+  open,
+  onOpenChange,
+  categories,
+  accounts,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categories: Category[];
+  accounts: Account[];
+}) {
+  const [type, setType] = useState("all");
+  const [categoryId, setCategoryId] = useState("all");
+  const [accountId, setAccountId] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [downloading, setDownloading] = useState(false);
+
+  const handleExport = async () => {
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams();
+      if (type !== "all") params.set("type", type);
+      if (categoryId !== "all") params.set("categoryId", categoryId);
+      if (accountId !== "all") params.set("accountId", accountId);
+      if (startDate) params.set("startDate", new Date(startDate).toISOString());
+      if (endDate) params.set("endDate", new Date(endDate).toISOString());
+
+      const res = await fetch(`/api/export?${params.toString()}`);
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fintrack-export-${new Date().toISOString().split("T")[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("CSV downloaded");
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || "Export failed");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const quickRange = (months: number) => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - months);
+    setStartDate(start.toISOString().split("T")[0]);
+    setEndDate(end.toISOString().split("T")[0]);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="w-4 h-4" /> Export Transactions
+          </DialogTitle>
+          <DialogDescription>
+            Download a CSV file of your transactions with optional filters
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Quick ranges */}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => quickRange(1)}>Last month</Button>
+            <Button size="sm" variant="outline" onClick={() => quickRange(3)}>3 months</Button>
+            <Button size="sm" variant="outline" onClick={() => quickRange(6)}>6 months</Button>
+            <Button size="sm" variant="outline" onClick={() => quickRange(12)}>1 year</Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Start Date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">End Date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="income">Income only</SelectItem>
+                <SelectItem value="expense">Expenses only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-xs">Category</Label>
+              <Select value={categoryId} onValueChange={setCategoryId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Account</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All accounts</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+            <Filter className="w-3.5 h-3.5 shrink-0" />
+            Filters are optional — leave blank to export everything
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleExport} disabled={downloading}>
+            <Download className="w-4 h-4 mr-1" />
+            {downloading ? "Downloading..." : "Download CSV"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

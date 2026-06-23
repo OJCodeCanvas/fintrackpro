@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type"); // income | expense
     const categoryId = searchParams.get("categoryId");
+    const accountId = searchParams.get("accountId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const search = searchParams.get("search");
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = { userId: user.id };
     if (type) where.type = type;
     if (categoryId) where.categoryId = categoryId;
+    if (accountId) where.accountId = accountId;
     if (startDate || endDate) {
       where.date = {};
       if (startDate) (where.date as Record<string, unknown>).gte = new Date(startDate);
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     const transactions = await db.transaction.findMany({
       where,
-      include: { category: true },
+      include: { category: true, account: true },
       orderBy,
       take: limit ? parseInt(limit) : undefined,
     });
@@ -58,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (!user) return unauthorizedResponse();
 
     const body = await req.json();
-    const { amount, type, categoryId, date, notes, tags } = body;
+    const { amount, type, categoryId, accountId, date, notes, tags } = body;
 
     if (!amount || !type || !categoryId || !date) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -72,18 +74,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid category" }, { status: 400 });
     }
 
+    // verify account (if provided) belongs to user
+    let accountRecord = null;
+    if (accountId) {
+      accountRecord = await db.account.findFirst({
+        where: { id: accountId, userId: user.id },
+      });
+      if (!accountRecord) {
+        return NextResponse.json({ error: "Invalid account" }, { status: 400 });
+      }
+    }
+
     const transaction = await db.transaction.create({
       data: {
         amount: parseFloat(amount),
         type,
         categoryId,
+        accountId: accountId || null,
         date: new Date(date),
         notes: notes || "",
         tags: tags || "",
         userId: user.id,
       },
-      include: { category: true },
+      include: { category: true, account: true },
     });
+
+    // Update account balance
+    if (accountRecord) {
+      const delta = type === "income" ? parseFloat(amount) : -parseFloat(amount);
+      await db.account.update({
+        where: { id: accountId },
+        data: { balance: { increment: delta } },
+      });
+    }
 
     return NextResponse.json({ transaction }, { status: 201 });
   } catch (error) {

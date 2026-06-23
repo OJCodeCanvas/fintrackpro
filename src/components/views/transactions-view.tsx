@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CategoryIcon } from "@/components/category-icon";
 import { apiFetch } from "@/lib/api-client";
-import { Transaction, Category } from "@/lib/types";
+import { Transaction, Category, Account } from "@/lib/types";
 import { formatCurrency, formatDate, parseTags } from "@/lib/format";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -68,6 +68,12 @@ export function TransactionsView() {
     queryFn: () => apiFetch<{ categories: Category[] }>("/api/categories"),
   });
   const categories = categoriesData?.categories || [];
+
+  const { data: accountsData } = useQuery<{ accounts: Account[] }>({
+    queryKey: ["accounts"],
+    queryFn: () => apiFetch<{ accounts: Account[] }>("/api/accounts"),
+  });
+  const accounts = accountsData?.accounts || [];
 
   // Build query string
   const params = new URLSearchParams();
@@ -265,6 +271,7 @@ export function TransactionsView() {
         onOpenChange={setModalOpen}
         editingTx={editingTx}
         categories={categories}
+        accounts={accounts}
       />
 
       {/* Delete confirmation */}
@@ -349,11 +356,13 @@ function TransactionModal({
   onOpenChange,
   editingTx,
   categories,
+  accounts,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingTx: Transaction | null;
   categories: Category[];
+  accounts: Account[];
 }) {
   // The Dialog content unmounts when closed, so we can safely use a key-based
   // inner form that re-initializes its state from props on each open.
@@ -364,6 +373,7 @@ function TransactionModal({
           key={editingTx?.id ?? "new"}
           editingTx={editingTx}
           categories={categories}
+          accounts={accounts}
           onDone={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -374,16 +384,19 @@ function TransactionModal({
 function TransactionForm({
   editingTx,
   categories,
+  accounts,
   onDone,
 }: {
   editingTx: Transaction | null;
   categories: Category[];
+  accounts: Account[];
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
   const [type, setType] = useState<"income" | "expense">(editingTx?.type ?? "expense");
   const [amount, setAmount] = useState(editingTx ? String(editingTx.amount) : "");
   const [categoryId, setCategoryId] = useState(editingTx?.categoryId ?? "");
+  const [accountId, setAccountId] = useState(editingTx?.accountId ?? "");
   const [date, setDate] = useState(
     editingTx ? editingTx.date.split("T")[0] : new Date().toISOString().split("T")[0]
   );
@@ -394,7 +407,7 @@ function TransactionForm({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const body = { amount, type, categoryId, date, notes, tags };
+      const body = { amount, type, categoryId, accountId, date, notes, tags };
       if (editingTx) {
         return apiFetch(`/api/transactions/${editingTx.id}`, {
           method: "PUT",
@@ -409,6 +422,7 @@ function TransactionForm({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
       toast.success(editingTx ? "Transaction updated" : "Transaction added");
       onDone();
     },
@@ -498,6 +512,26 @@ function TransactionForm({
               </SelectContent>
             </Select>
           </div>
+
+          {accounts.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="account">Account</Label>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger><SelectValue placeholder="No account" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No account</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ background: a.color }} />
+                        {a.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="date">Date *</Label>

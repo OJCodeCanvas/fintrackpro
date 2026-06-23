@@ -23,7 +23,7 @@ export async function POST() {
 
     const token = btoa(`pf_session_${user.id}`);
     const res = NextResponse.json({
-      user: { id: user.id, email: user.email, name: user.name, isDemo: user.isDemo },
+      user: { id: user.id, email: user.email, name: user.name, isDemo: user.isDemo, currency: user.currency },
     });
     res.cookies.set(SESSION_COOKIE_NAME, token, {
       path: "/",

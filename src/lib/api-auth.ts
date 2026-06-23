@@ -5,6 +5,7 @@ export interface SessionUser {
   email: string;
   name: string;
   isDemo: boolean;
+  currency: string;
 }
 
 export function getUserIdFromRequest(req: Request): string | null {
@@ -33,7 +34,7 @@ export async function getUserFromRequest(req: Request): Promise<SessionUser | nu
   if (!userId) return null;
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, isDemo: true },
+    select: { id: true, email: true, name: true, isDemo: true, currency: true },
   });
   return user;
 }

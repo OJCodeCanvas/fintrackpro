@@ -46,3 +46,92 @@ Artifacts:
 - Components: `src/components/{theme-provider,query-provider,auth-screen,app-shell,category-icon}.tsx`
 - Views: `src/components/views/{dashboard,transactions,categories,budgets,reports}-view.tsx`
 - Entry: `src/app/page.tsx`, `src/app/layout.tsx`, `src/app/globals.css`
+
+---
+Task ID: 3 (recurring-view)
+Agent: general-purpose sub-agent
+Task: Build a "Recurring Transactions" view component (`RecurringView`) for the FinTrack app.
+
+Work Log:
+- Read prior worklog and reference files (`budgets-view.tsx`, `transactions-view.tsx`, `types.ts`, `format.ts`, `api-client.ts`, `store.ts`, `switch.tsx`, `category-icon.tsx`, recurring API routes, accounts route) to understand established patterns and exact data shapes.
+- Created `src/components/views/recurring-view.tsx` exporting `RecurringView`. Key features:
+  - **Header**: title + subtitle, "Process Now" button (POST `/api/recurring/process`, shows toast with `created` count, invalidates `recurring`/`transactions`/`summary` queries), and "New Recurring" button. Process button shows a spinning `RefreshCw` icon while pending.
+  - **Stats row**: 3 small cards — Active count (with "of N total"), Monthly expense total (sum of active monthly expense amounts), Next upcoming date (nearest active recurring's `nextDate` + category name; `—` when none).
+  - **List**: each recurring is a `Card` rendered inside a `motion.div` with staggered entrance (`delay: i * 0.04`). Each card shows: category icon in colored circle, category name, frequency `Badge` (e.g. "Monthly on day 3", "Weekly", "Daily", "Yearly" via `frequencyLabel` helper), optional account `Badge` (outline), "Next: <date>" with Calendar icon + optional "Until: <date>", notes (line-clamped to 2 lines), amount with income (+green emerald) / expense (default) styling, and a `Switch` to toggle `isActive` (calls PUT `/api/recurring/[id]` with `{ isActive }`). The switch is paired with a `Play`/`Pause` icon + "Active"/"Paused" label. Paused items render at 60% opacity. Edit + Delete buttons appear on hover (opacity-0 → group-hover:opacity-100).
+  - **Empty state**: centered card with `Repeat` icon, heading, description, and a CTA button.
+  - **Add/Edit modal** (`Dialog`) with the key-based inner form pattern (`<RecurringForm key={editing?.id ?? "new"} ... />`) so all state is initialized via `useState` initializers — no `useEffect`/setState-in-effect. Form fields: Expense/Income toggle (styled identically to `transactions-view.tsx` with red/emerald borders), amount (number input with `$` prefix), category select (filtered by type, fetched from `/api/categories`), account select (optional, with "No account" sentinel value, fetched from `/api/accounts`), frequency select (Daily/Weekly/Monthly/Yearly), day-of-month input (shown only when `frequency === "monthly"`, optional), start date (defaults to today), optional end date, notes textarea, and Cancel + Submit buttons.
+  - **Delete confirmation**: `AlertDialog` with category-name in title, calls DELETE `/api/recurring/[id]`.
+- Mobile responsive: header buttons wrap (`flex-wrap`), stats grid collapses to single column, card content uses `flex-wrap` for badges so it fits at 390px width.
+- Uses emerald/teal accents (matching the app theme) for income styling and the Income type toggle.
+
+Verification:
+- `bunx eslint src/components/views/recurring-view.tsx` → passed clean (0 errors, 0 warnings).
+- `bunx tsc --noEmit` → no errors in the new file (pre-existing errors in `examples/`, `skills/`, and `transactions/route.ts` are unrelated).
+
+Artifacts:
+- New view: `src/components/views/recurring-view.tsx` (exports `RecurringView`).
+
+---
+Task ID: 5 (goals-view)
+Agent: general-purpose sub-agent
+Task: Build a "Savings Goals" view component (`GoalsView`) for the FinTrack app.
+
+Work Log:
+- Read prior worklog and reference files (`budgets-view.tsx` for the key-based inner form pattern, `categories-view.tsx` for color/icon picker patterns, `types.ts` for the `Goal` interface, `format.ts`, `category-icon.tsx`, both `/api/goals` route files) to align with established conventions and exact data shapes.
+- Created `src/components/views/goals-view.tsx` exporting `GoalsView`. Key features:
+  - **Header**: title "Savings Goals" + subtitle "Track progress toward your financial goals" + emerald-accented "New Goal" button (uses inline `style={{ background: "#10b981" }}` since `primary` is themed).
+  - **Overview stats**: 3 cards — Total Goals count (with Target icon), Total Saved (sum currentAmount, TrendingUp icon), Total Target (sum targetAmount, CheckCircle2 icon) with a combined progress bar showing overall `totalSaved/totalTarget` percentage in emerald.
+  - **Grid of goal cards** (responsive 1 / 2 / 3 cols), each rendered inside a `motion.div` with staggered entrance (`delay: i * 0.05`). Each card shows: goal icon in a colored circle (uses `g.color` + `CategoryIcon name={g.icon}`), bold goal name, "current / target" amounts (e.g. "$1,200 / $4,000"), animated progress bar (`motion.div` width animation) colored with the goal's color (or emerald when completed), percentage text + remaining amount, "Completed!" emerald badge when percentage >= 100, optional "Target: <date>" row with Calendar icon + "in N days" (emerald) or "overdue" (red) based on `daysBetween`, and "+ Add Funds" + "+ Add" buttons that open the Funds dialog. Edit + Delete buttons are hover-revealed (`opacity-0 group-hover:opacity-100`).
+  - **Empty state**: centered card with Target icon, heading, description, and a "Create Goal" CTA.
+  - **Add/Edit modal** (`Dialog`) using the key-based inner form pattern (`<GoalForm key={editingGoal?.id ?? "new"} ... />`) — no `useEffect`/setState-in-effect. All form state is initialized via `useState` initializers from props. Fields: Name input, Target amount (number, `$` prefix), Current amount (number, `$` prefix, default "0"), Color picker (row of 15 preset color buttons matching the categories-view preset), Icon picker (6-col grid of 12 icons: Target, Shield, Plane, Laptop, Home, Car, Gift, GraduationCap, Heart, Star, Trophy, PiggyBank), optional Target Date (date input), and a live preview card showing the goal card with selected color/icon/name + computed progress bar. Cancel + Submit (emerald).
+  - **Add Funds dialog** (`FundsDialog` → `FundsForm`, also key-based on `goal.id` so the form resets cleanly when switching goals): shows current total, a single amount-to-add input with `$` prefix, a preview of the new total + new percentage + a progress bar, and Cancel + "Add Funds" Submit. Calls `PUT /api/goals/[id]` with the new `currentAmount` and invalidates the `goals` query.
+  - **Delete confirmation**: `AlertDialog` with the goal name in the title; calls `DELETE /api/goals/[id]` and invalidates `goals`.
+- Mobile responsive: header buttons wrap (`flex-col sm:flex-row`), overview cards collapse to a single column on mobile, goal grid collapses to 1 column on mobile / 2 on tablet / 3 on desktop, target-date row uses `ml-auto` to push the days-remaining badge to the right and wraps gracefully on narrow widths (390px).
+- Uses Lucide icons throughout: Plus, Pencil, Trash2, Target, TrendingUp, Calendar, CheckCircle2, Clock. Emerald/teal accent via the `ACCENT = "#10b981"` constant for all primary action buttons.
+- Animations: each goal card animates in with `motion.div` (`opacity: 0, y: 10` → `opacity: 1, y: 0`, `delay: i * 0.05`), and each card's progress bar animates its width with a 0.5s ease-out transition.
+
+Verification:
+- `bunx eslint src/components/views/goals-view.tsx` → passed clean (0 errors, 0 warnings, no output).
+- `bunx tsc --noEmit` → no errors in the new file.
+
+Artifacts:
+- New view: `src/components/views/goals-view.tsx` (exports `GoalsView`).
+
+---
+Task ID: extensions
+Agent: main (Z.ai Code)
+Task: Add 4 extensions: CSV export with filters, recurring transactions, multi-currency, savings goals, AI insights, multi-account, bills/reminders.
+
+Work Log:
+- Extended Prisma schema with Recurring, Account, Goal, Bill models; added `currency` to User and `accountId` to Transaction. Ran `prisma db push` + `prisma generate`.
+- Reset SQLite DB so the demo user re-seeds with the new sample data (3 accounts, 3 recurring templates, 3 savings goals, 4 bills).
+- Updated auth routes (login/register/demo/me) + api-auth to include the `currency` field on the session user.
+- Built API routes: `/api/export` (CSV with type/category/account/date-range filters, streams a CSV response), `/api/recurring` + `/api/recurring/[id]` + `/api/recurring/process`, `/api/currencies/rates` (fetches from exchangerate.host with static fallback), `/api/user/currency` (PUT), `/api/accounts` + `/api/accounts/[id]`, `/api/goals` + `/api/goals/[id]`, `/api/bills` + `/api/bills/[id]`, `/api/insights` (LLM-powered via z-ai-web-dev-sdk).
+- Created `src/lib/recurring.ts` with `computeNextDate()` + `processRecurringTransactions()` helpers (auto-runs on GET /api/recurring).
+- Enhanced the transactions API to: accept `accountId`, include `account` relation, auto-adjust account balances on create/update/delete.
+- Built the `CurrencySelector` component (dropdown with 6 currencies + live rates panel) and wired it into the sidebar.
+- Built 5 new views: `recurring-view` (via subagent), `goals-view` (via subagent), `bills-view`, `accounts-view`, `insights-view`. All use the key-based inner form pattern to avoid setState-in-effect lint errors.
+- Restructured the sidebar nav into sections (Planning / Manage / Insights) to fit all 10 views.
+- Enhanced Reports view with an export dialog (quick ranges, type/category/account/date filters, downloads via /api/export).
+- Added an Account selector to the transaction add/edit form.
+- Wired all 10 views into page.tsx with session-currency sync.
+
+Stage Summary (Agent-Browser verified):
+- Demo login seeds: 3 accounts (Checking/Savings/Credit), 3 recurring (Salary/Rent/Streaming), 3 goals (Emergency Fund/Vacation/Laptop), 4 bills (Electricity/Internet/Phone/Gym).
+- Dashboard: $8,244.95 balance, charts, recent transactions — all render.
+- Accounts view: Net Worth card + 3 account cards with balances + transaction counts.
+- Recurring view: 3 active templates with frequency labels, next dates, active toggles, "Process Now" button (ran, processed 0 since none due).
+- Goals view: 3 goals with progress bars ($6,500/$10,000 Emergency Fund, etc.).
+- Bills view: tabs (Upcoming 3, Overdue 0, Paid 1), relative due-date labels ("Due in 3 days"), Mark Paid toggle.
+- AI Insights view: LLM generated real analysis — "Spending Patterns", "Top Insights", "Recommendations" with specific numbers (Rent 58% of expenses, 52.3% savings rate, actionable advice).
+- Multi-currency: selector switches between USD/EUR/GBP/JPY/CNY/INR, persists to User, live rates panel shows fallback rates (EUR 0.92, GBP 0.79, JPY 156, CNY 7.24, INR 83.50).
+- CSV export: dialog with quick ranges + filters, downloads CSV via /api/export, "CSV downloaded" toast confirmed.
+- Mobile (390px): hamburger menu opens with all 10 nav items + sections.
+- `bun run lint` passes clean (0 errors).
+- Dev server runs on port 3000 with no runtime errors.
+
+Artifacts:
+- New API: src/app/api/{export,recurring,currencies,user,accounts,goals,bills,insights}/
+- New lib: src/lib/recurring.ts
+- New components: src/components/currency-selector.tsx, src/components/views/{recurring,goals,bills,accounts,insights}-view.tsx
+- Updated: prisma/schema.prisma, src/lib/{api-auth,types,store,seed}.ts, src/app/api/{auth/*,transactions/*}, src/components/{app-shell,views/reports-view,views/transactions-view}.tsx, src/app/page.tsx

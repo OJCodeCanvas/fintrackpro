@@ -227,4 +227,190 @@ export async function seedSampleData(userId: string): Promise<void> {
   }
 
   await db.transaction.createMany({ data: transactions });
+
+  // Create default accounts
+  await db.account.createMany({
+    data: [
+      {
+        name: "Checking",
+        type: "checking",
+        balance: 5200,
+        color: "#10b981",
+        icon: "Wallet",
+        currency: "USD",
+        isDefault: true,
+        userId,
+      },
+      {
+        name: "Savings",
+        type: "savings",
+        balance: 8500,
+        color: "#0ea5e9",
+        icon: "PiggyBank",
+        currency: "USD",
+        isDefault: false,
+        userId,
+      },
+      {
+        name: "Credit Card",
+        type: "credit",
+        balance: -1240,
+        color: "#ef4444",
+        icon: "CreditCard",
+        currency: "USD",
+        isDefault: false,
+        userId,
+      },
+    ],
+  });
+  const accountRecords = await db.account.findMany({ where: { userId } });
+  const checking = accountRecords.find((a) => a.name === "Checking");
+
+  // Assign the default checking account to all created transactions
+  if (checking) {
+    await db.transaction.updateMany({
+      where: { userId, accountId: null },
+      data: { accountId: checking.id },
+    });
+  }
+
+  // Create a couple of recurring templates
+  const salaryCat = findCat("Salary");
+  const rentCat = findCat("Rent");
+  const entCat = findCat("Entertainment");
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  nextMonth.setDate(1);
+
+  if (salaryCat) {
+    await db.recurring.create({
+      data: {
+        amount: 4800,
+        type: "income",
+        categoryId: salaryCat.id,
+        accountId: checking?.id || null,
+        frequency: "monthly",
+        dayOfMonth: 1,
+        startDate: new Date(currentYear, currentMonth - 2, 1),
+        nextDate: nextMonth,
+        isActive: true,
+        notes: "Monthly salary",
+        userId,
+      },
+    });
+  }
+  if (rentCat) {
+    await db.recurring.create({
+      data: {
+        amount: 1450,
+        type: "expense",
+        categoryId: rentCat.id,
+        accountId: checking?.id || null,
+        frequency: "monthly",
+        dayOfMonth: 3,
+        startDate: new Date(currentYear, currentMonth - 2, 3),
+        nextDate: new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 3),
+        isActive: true,
+        notes: "Monthly rent",
+        userId,
+      },
+    });
+  }
+  if (entCat) {
+    await db.recurring.create({
+      data: {
+        amount: 15.99,
+        type: "expense",
+        categoryId: entCat.id,
+        accountId: checking?.id || null,
+        frequency: "monthly",
+        dayOfMonth: 10,
+        startDate: new Date(currentYear, currentMonth - 2, 10),
+        nextDate: new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 10),
+        isActive: true,
+        notes: "Streaming subscription",
+        userId,
+      },
+    });
+  }
+
+  // Savings goals
+  await db.goal.createMany({
+    data: [
+      {
+        name: "Emergency Fund",
+        targetAmount: 10000,
+        currentAmount: 6500,
+        color: "#10b981",
+        icon: "Shield",
+        targetDate: new Date(currentYear + 1, 5, 1),
+        userId,
+      },
+      {
+        name: "Vacation to Japan",
+        targetAmount: 4000,
+        currentAmount: 1200,
+        color: "#f59e0b",
+        icon: "Plane",
+        targetDate: new Date(currentYear, 11, 1),
+        userId,
+      },
+      {
+        name: "New Laptop",
+        targetAmount: 2000,
+        currentAmount: 800,
+        color: "#8b5cf6",
+        icon: "Laptop",
+        userId,
+      },
+    ],
+  });
+
+  // Bills (upcoming)
+  const billBaseDate = new Date();
+  const inDays = (d: number) => {
+    const dt = new Date(billBaseDate);
+    dt.setDate(dt.getDate() + d);
+    return dt;
+  };
+  await db.bill.createMany({
+    data: [
+      {
+        name: "Electricity Bill",
+        amount: 95,
+        dueDate: inDays(3),
+        isPaid: false,
+        isRecurring: true,
+        notes: "Monthly electricity",
+        userId,
+      },
+      {
+        name: "Internet Bill",
+        amount: 60,
+        dueDate: inDays(7),
+        isPaid: false,
+        isRecurring: true,
+        notes: "Fiber internet",
+        userId,
+      },
+      {
+        name: "Phone Bill",
+        amount: 45,
+        dueDate: inDays(-2),
+        isPaid: true,
+        isRecurring: true,
+        notes: "Mobile plan",
+        userId,
+      },
+      {
+        name: "Gym Membership",
+        amount: 35,
+        dueDate: inDays(12),
+        isPaid: false,
+        isRecurring: true,
+        notes: "Monthly gym",
+        userId,
+      },
+    ],
+  });
 }
