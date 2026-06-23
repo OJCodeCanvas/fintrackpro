@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     if (!user) return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status"); // paid | unpaid | all
+    const status = searchParams.get("status");
     const overdueOnly = searchParams.get("overdue") === "true";
 
     const where: Record<string, unknown> = { userId: user.id };

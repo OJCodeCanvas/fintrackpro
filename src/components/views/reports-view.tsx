@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, apiRequest } from "@/lib/api-client";
 import { Summary, Category, Account } from "@/lib/types";
 import { formatCurrency, formatCompact } from "@/lib/format";
 import { useAppStore } from "@/lib/store";
@@ -318,7 +318,7 @@ function ExportDialog({
       if (startDate) params.set("startDate", new Date(startDate).toISOString());
       if (endDate) params.set("endDate", new Date(endDate).toISOString());
 
-      const res = await fetch(`/api/export?${params.toString()}`);
+      const res = await apiRequest(`/api/export?${params.toString()}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

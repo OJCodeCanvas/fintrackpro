@@ -8,7 +8,6 @@ export async function GET(req: NextRequest) {
     const user = await getUserFromRequest(req);
     if (!user) return unauthorizedResponse();
 
-    // Process any due recurring transactions first
     await processRecurringTransactions(user.id);
 
     const recurring = await db.recurring.findMany({

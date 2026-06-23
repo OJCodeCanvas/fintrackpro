@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));
 
-    // Get all transactions for the year
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
@@ -22,14 +21,7 @@ export async function GET(req: NextRequest) {
       include: { category: true },
     });
 
-    // Monthly breakdown
-    const monthlyData: Array<{
-      month: number;
-      monthName: string;
-      income: number;
-      expense: number;
-      balance: number;
-    }> = [];
+    const monthlyData = [];
     for (let m = 0; m < 12; m++) {
       const monthTx = transactions.filter((t) => new Date(t.date).getMonth() === m);
       const income = monthTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
@@ -43,12 +35,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Current month totals
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentMonthData = monthlyData[currentMonth];
 
-    // Spending by category (current month, expenses only)
     const currentMonthTx = transactions.filter(
       (t) => new Date(t.date).getMonth() === currentMonth && t.type === "expense"
     );
@@ -61,17 +51,14 @@ export async function GET(req: NextRequest) {
     }
     const spendingByCategory = Array.from(byCategoryMap.values()).sort((a, b) => b.value - a.value);
 
-    // Year totals
     const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
-    // All-time balance (all transactions)
     const allTx = await db.transaction.findMany({ where: { userId: user.id } });
     const allIncome = allTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const allExpense = allTx.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
     const totalBalance = allIncome - allExpense;
 
-    // Budget progress for current month
     const budgets = await db.budget.findMany({
       where: { userId: user.id, month: currentMonth + 1, year },
       include: { category: true },

@@ -54,7 +54,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
-    // Check for associated transactions
     const txCount = await db.transaction.count({ where: { categoryId: id } });
     if (txCount > 0) {
       return NextResponse.json(

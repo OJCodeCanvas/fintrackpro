@@ -164,3 +164,37 @@ Artifacts:
 - New public assets: public/{manifest.json, sw.js, icon-192x192.png, icon-256x256.png, icon-384x384.png, icon-512x512.png, icon-maskable-512x512.png, apple-touch-icon.png, favicon-32.png, icon.svg}
 - New components: src/components/{sw-register,install-prompt}.tsx
 - Updated: src/app/layout.tsx (PWA metadata + viewport), src/app/globals.css (safe-area + mobile UX), src/components/auth-screen.tsx (signup copy)
+
+---
+Task ID: native-app
+Agent: main (Z.ai Code)
+Task: Make FinTrack a real downloadable native app (APK for Android, IPA for iPhone) — not just a PWA/web shortcut.
+
+Work Log:
+- Installed Capacitor packages: @capacitor/core, @capacitor/cli, @capacitor/android, @capacitor/ios, @capacitor/preferences.
+- Built `src/lib/local-store.ts` — a complete localStorage-backed data layer mirroring all DB entities (users, categories, transactions, budgets, recurring, accounts, goals, bills) with full CRUD + seeding + summary computation. All data stays on-device.
+- Built `src/lib/local-api.ts` — intercepts all API requests when running natively and routes them to the local store. Implements every endpoint (auth, transactions, categories, budgets, recurring, accounts, goals, bills, reports/summary, insights, export, currency rates) returning the same response shapes. Includes rule-based offline insights when LLM isn't available.
+- Modified `src/lib/api-client.ts` — `apiFetch()` and new `apiRequest()` now check `isNativeApp()` (Capacitor) and route to local-api when native, real network when web. The views don't change at all — only the data transport swaps.
+- Auth handled locally: session stored in localStorage (no cookies in native WebView), login/register/demo/logout all work offline.
+- Created `capacitor.config.ts` (appId: com.fintrack.app, webDir: out, splash screen config, Android/iOS settings).
+- Updated `next.config.ts` to conditionally use `output: "export"` + trailingSlash when `BUILD_TARGET=mobile` (static export for Capacitor) vs `standalone` for normal dev.
+- Created `scripts/mobile-build.sh` — temporarily moves /api routes out (they can't be statically exported; native app uses local layer instead), builds static export to /out, restores routes.
+- Added package.json scripts: mobile:build, mobile:sync, mobile:add:android, mobile:add:ios, mobile:android (open Android Studio), mobile:ios (open Xcode), mobile:run:android.
+- Created `BUILD-GUIDE.md` — comprehensive step-by-step guide for building APK (Android Studio) and IPA (Xcode), prerequisites, publishing to Google Play + App Store, troubleshooting.
+- Regenerated favicon-32.png (was missing).
+- Restored all 25 API route files after a failed mobile build accidentally moved them — verified all routes work again.
+- Verified mobile build succeeds: `bash scripts/mobile-build.sh` produces `out/index.html` with all static assets, API routes restored after build.
+
+Stage Summary (Agent-Browser verified):
+- Web mode: demo login → dashboard with €8,244.95 balance (server data). Real signup → empty account ($0.00, "No transactions yet"). All 25 API routes return 200.
+- Mobile build: `npm run mobile:build` successfully generates static export in /out. API routes excluded during build, restored after.
+- Dual-mode architecture: `isNativeApp()` returns false in browser (uses server API), true in Capacitor (uses localStorage). Verified the local data layer works via direct localStorage testing.
+- `bun run lint` passes clean (0 errors).
+- Dev server runs with no errors.
+
+Artifacts:
+- New libs: src/lib/{local-store,local-api}.ts
+- New config: capacitor.config.ts, scripts/mobile-build.sh
+- New docs: BUILD-GUIDE.md
+- Updated: src/lib/{api-client,next.config,package.json}
+- Restored: all 25 src/app/api/**/route.ts files

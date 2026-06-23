@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { SESSION_COOKIE_NAME } from "@/lib/auth";
-import { ensureDefaultCategories, seedSampleData } from "@/lib/seed";
 
 export async function POST(req: NextRequest) {
   try {

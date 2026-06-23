@@ -3,18 +3,15 @@ import { NextResponse } from "next/server";
 const BASE_CURRENCY = "USD";
 const SUPPORTED = ["USD", "EUR", "GBP", "JPY", "CNY", "INR"];
 
-// In-memory cache with 1 hour TTL
 let cache: { rates: Record<string, number>; ts: number } | null = null;
 const TTL = 60 * 60 * 1000;
 
 export async function GET() {
   try {
-    // Return cached rates if fresh
     if (cache && Date.now() - cache.ts < TTL) {
       return NextResponse.json({ base: BASE_CURRENCY, rates: cache.rates });
     }
 
-    // Fetch live rates from exchangerate.host (free, no API key)
     let rates: Record<string, number> = { USD: 1 };
     let fetched = false;
     try {
@@ -33,7 +30,6 @@ export async function GET() {
       // fall through to fallback
     }
 
-    // Fallback to approximate static rates if the API is unreachable or empty
     if (!fetched) {
       rates = {
         USD: 1,

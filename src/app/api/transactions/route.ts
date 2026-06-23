@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     if (!user) return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type"); // income | expense
+    const type = searchParams.get("type");
     const categoryId = searchParams.get("categoryId");
     const accountId = searchParams.get("accountId");
     const startDate = searchParams.get("startDate");
@@ -66,7 +66,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // verify category belongs to user
     const category = await db.category.findFirst({
       where: { id: categoryId, userId: user.id },
     });
@@ -74,7 +73,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid category" }, { status: 400 });
     }
 
-    // verify account (if provided) belongs to user
     let accountRecord = null;
     if (accountId) {
       accountRecord = await db.account.findFirst({
@@ -99,7 +97,6 @@ export async function POST(req: NextRequest) {
       include: { category: true, account: true },
     });
 
-    // Update account balance
     if (accountRecord) {
       const delta = type === "income" ? parseFloat(amount) : -parseFloat(amount);
       await db.account.update({

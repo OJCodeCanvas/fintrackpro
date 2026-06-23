@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest, unauthorizedResponse } from "@/lib/api-auth";
 import { processRecurringTransactions } from "@/lib/recurring";
 
-// Manually trigger processing of due recurring transactions
 export async function POST(req: NextRequest) {
   try {
     const user = await getUserFromRequest(req);

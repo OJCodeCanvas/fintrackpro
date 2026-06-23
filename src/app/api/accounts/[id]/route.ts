@@ -64,7 +64,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
-    // Null out account references on transactions, then delete
     await db.transaction.updateMany({
       where: { accountId: id },
       data: { accountId: null },

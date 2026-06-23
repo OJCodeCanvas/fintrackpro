@@ -37,16 +37,7 @@ export async function GET(req: NextRequest) {
       orderBy: { date: "desc" },
     });
 
-    const headers = [
-      "Date",
-      "Type",
-      "Category",
-      "Account",
-      "Amount",
-      "Notes",
-      "Tags",
-    ];
-
+    const headers = ["Date", "Type", "Category", "Account", "Amount", "Notes", "Tags"];
     const rows = transactions.map((t) =>
       [
         t.date.toISOString().split("T")[0],
@@ -62,7 +53,6 @@ export async function GET(req: NextRequest) {
     );
 
     const csv = [headers.join(","), ...rows].join("\n");
-
     const dateLabel = new Date().toISOString().split("T")[0];
     const filename = `fintrack-export-${dateLabel}.csv`;
 

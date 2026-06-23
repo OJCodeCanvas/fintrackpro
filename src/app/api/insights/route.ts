@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));
 
-    // Gather the user's financial context for the LLM
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
@@ -28,7 +27,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Aggregate data
     const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
@@ -42,7 +40,6 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.total - a.total)
       .slice(0, 6);
 
-    // Monthly breakdown
     const monthly: Record<string, { income: number; expense: number }> = {};
     for (const t of transactions) {
       const key = new Date(t.date).toLocaleDateString("en-US", { month: "short" });
@@ -67,7 +64,6 @@ export async function GET(req: NextRequest) {
       transactionCount: transactions.length,
     };
 
-    // Dynamically import the SDK (server-only)
     const ZAI = (await import("z-ai-web-dev-sdk")).default;
     const zai = await ZAI.create();
 

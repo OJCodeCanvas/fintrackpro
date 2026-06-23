@@ -30,13 +30,11 @@ export async function PUT(
       }
     }
 
-    // Handle account reassignment + balance adjustment
     if (accountId !== undefined) {
       const newAmount = amount !== undefined ? parseFloat(amount) : existing.amount;
       const newType = type || existing.type;
       const delta = newType === "income" ? newAmount : -newAmount;
 
-      // Reverse the old account balance
       if (existing.accountId) {
         const oldDelta = existing.type === "income" ? -existing.amount : existing.amount;
         await db.account.update({
@@ -44,7 +42,6 @@ export async function PUT(
           data: { balance: { increment: oldDelta } },
         });
       }
-      // Apply to new account
       if (accountId) {
         const account = await db.account.findFirst({
           where: { id: accountId, userId: user.id },
@@ -96,7 +93,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    // Reverse account balance before deleting
     if (existing.accountId) {
       const delta = existing.type === "income" ? -existing.amount : existing.amount;
       await db.account.update({

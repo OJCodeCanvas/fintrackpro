@@ -10,9 +10,7 @@ export async function GET(req: NextRequest) {
     const accounts = await db.account.findMany({
       where: { userId: user.id },
       orderBy: [{ isDefault: "desc" }, { name: "asc" }],
-      include: {
-        _count: { select: { transactions: true } },
-      },
+      include: { _count: { select: { transactions: true } } },
     });
 
     return NextResponse.json({ accounts });
@@ -34,7 +32,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // If setting as default, unset others
     if (isDefault) {
       await db.account.updateMany({
         where: { userId: user.id, isDefault: true },

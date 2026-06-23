@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid category" }, { status: 400 });
     }
 
-    // upsert: if budget exists for this category/month/year, update it
     const existing = await db.budget.findFirst({
       where: { userId: user.id, categoryId, month, year },
     });
