@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  categories   Category[]
+  budgets      Budget[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  color     String
+  icon      String
+  type      String // "income" | "expense"
+  isDefault Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  amount       Float
+  type         String // "income" | "expense"
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  date         DateTime
+  notes        String   @default("")
+  tags         String   @default("") // comma-separated
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, categoryId])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  amount     Float
+  month      Int // 1-12
+  year       Int
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId, month, year])
+  @@index([userId, month, year])
+}
