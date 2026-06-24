@@ -67,9 +67,9 @@ export function TransactionsView() {
 
   const handleNLParsed = (tx: Partial<Transaction>) => {
     setEditingTx(null);
+    setModalOpen(false);
     setPrefill(tx);
-    setModalOpen(true);
-  };
+    setTimeout(() => setModalOpen(true), 50);
 
   const { data: categoriesData } = useQuery<{ categories: Category[] }>({
     queryKey: ["categories"],
@@ -110,13 +110,9 @@ export function TransactionsView() {
 
   const handleEdit = (tx: Transaction) => {
     setEditingTx(tx);
-    setModalOpen(true);
-  };
 
   const handleAdd = () => {
     setEditingTx(null);
-    setModalOpen(true);
-  };
 
   const handleDelete = () => {
     if (deleteId) deleteMutation.mutate(deleteId);
