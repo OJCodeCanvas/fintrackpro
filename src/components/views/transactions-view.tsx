@@ -384,7 +384,7 @@ function TransactionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <TransactionForm
-          key={editingTx?.id ?? "new"}
+          key={editingTx?.id ?? (prefill ? JSON.stringify(prefill) : "new")}
           editingTx={editingTx}
           categories={categories}
           accounts={accounts}
