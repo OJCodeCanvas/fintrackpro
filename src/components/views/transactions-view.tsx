@@ -70,6 +70,7 @@ export function TransactionsView() {
     setModalOpen(false);
     setPrefill(tx);
     setTimeout(() => setModalOpen(true), 50);
+  };
 
   const { data: categoriesData } = useQuery<{ categories: Category[] }>({
     queryKey: ["categories"],
@@ -110,9 +111,13 @@ export function TransactionsView() {
 
   const handleEdit = (tx: Transaction) => {
     setEditingTx(tx);
+    setModalOpen(true);
+  };
 
   const handleAdd = () => {
     setEditingTx(null);
+    setModalOpen(true);
+  };
 
   const handleDelete = () => {
     if (deleteId) deleteMutation.mutate(deleteId);
@@ -380,7 +385,7 @@ function TransactionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <TransactionForm
-          key={editingTx?.id ?? (prefill ? JSON.stringify(prefill) : "new")}
+          key={editingTx?.id ?? (prefill ? `prefill-${prefill.amount}-${prefill.categoryId}` : "new")}
           editingTx={editingTx}
           categories={categories}
           accounts={accounts}
@@ -589,4 +594,3 @@ function TransactionForm({
     </>
   );
 }
-
