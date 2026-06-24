@@ -14,10 +14,7 @@ export async function GET(req: NextRequest) {
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
 
     const transactions = await db.transaction.findMany({
-      where: {
-        userId: user.id,
-        date: { gte: startOfYear, lte: endOfYear },
-      },
+      where: { userId: user.id, date: { gte: startOfYear, lte: endOfYear } },
       include: { category: true },
     });
 
@@ -30,15 +27,13 @@ export async function GET(req: NextRequest) {
     const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
-    const byCategory = new Map<string, { name: string; color: string; total: number }>();
+    const byCategory = new Map<string, { name: string; total: number }>();
     for (const t of transactions.filter((t) => t.type === "expense")) {
-      const existing = byCategory.get(t.category.name) || { name: t.category.name, color: t.category.color, total: 0 };
+      const existing = byCategory.get(t.category.name) || { name: t.category.name, total: 0 };
       existing.total += t.amount;
       byCategory.set(t.category.name, existing);
     }
-    const topCategories = Array.from(byCategory.values())
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 6);
+    const topCategories = Array.from(byCategory.values()).sort((a, b) => b.total - a.total).slice(0, 6);
 
     const monthly: Record<string, { income: number; expense: number }> = {};
     for (const t of transactions) {
@@ -56,37 +51,38 @@ export async function GET(req: NextRequest) {
       netSavings: Math.round((totalIncome - totalExpense) * 100) / 100,
       savingsRate: totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 1000) / 10 : 0,
       topExpenseCategories: topCategories.map((c) => ({ name: c.name, amount: Math.round(c.total * 100) / 100 })),
-      monthlyBreakdown: Object.entries(monthly).map(([month, v]) => ({
-        month,
-        income: Math.round(v.income * 100) / 100,
-        expense: Math.round(v.expense * 100) / 100,
-      })),
+      monthlyBreakdown: Object.entries(monthly).map(([month, v]) => ({ month, income: Math.round(v.income * 100) / 100, expense: Math.round(v.expense * 100) / 100 })),
       transactionCount: transactions.length,
     };
 
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
-
-    const systemPrompt = `You are a friendly, concise personal finance advisor. Analyze the user's financial data and provide actionable insights. Be specific, use numbers, and keep it under 250 words. Structure your response with 3-4 short sections using markdown headings (##) like "## Spending Patterns", "## Top Insights", "## Recommendations". Do not use emoji.`;
-
-    const userPrompt = `Here is my financial data for ${year} (in ${context.currency}):\n\n${JSON.stringify(context, null, 2)}\n\nAnalyze my spending patterns, highlight anything notable (good or concerning), and give me 2-3 specific actionable recommendations to improve my finances.`;
-
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: "assistant", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      thinking: { type: "disabled" },
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [
+          {
+            role: "system",
+            content: "You are a friendly, concise personal finance advisor. Analyze the user's financial data and provide actionable insights. Be specific, use numbers, and keep it under 250 words. Structure your response with 3-4 short sections using markdown headings (##) like '## Spending Patterns', '## Top Insights', '## Recommendations'. Do not use emoji.",
+          },
+          {
+            role: "user",
+            content: `Here is my financial data for ${year} (in ${context.currency}):\n\n${JSON.stringify(context, null, 2)}\n\nAnalyze my spending patterns, highlight anything notable (good or concerning), and give me 2-3 specific actionable recommendations to improve my finances.`,
+          },
+        ],
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
     });
 
-    const insights = completion.choices[0]?.message?.content || "Unable to generate insights at this time.";
-
+    const data = await response.json();
+    const insights = data.choices?.[0]?.message?.content || "Unable to generate insights at this time.";
     return NextResponse.json({ insights });
   } catch (error) {
     console.error("AI insights error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate insights. Please try again later." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate insights. Please try again later." }, { status: 500 });
   }
 }

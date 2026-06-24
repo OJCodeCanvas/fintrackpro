@@ -13,9 +13,6 @@ export async function POST(req: NextRequest) {
     const categories = await db.category.findMany({ where: { userId: user.id } });
     const categoryList = categories.map((c) => `${c.id}:${c.name}:${c.type}`).join(", ");
 
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
-
     const prompt = `You are a transaction parser. Extract transaction details from natural language and return ONLY valid JSON, no other text.
 
 User's categories: ${categoryList}
@@ -34,17 +31,27 @@ Return JSON with these exact fields:
 
 Rules:
 - Words like "spent", "bought", "paid" = expense
-- Words like "received", "got paid", "earned", "salary" = income  
+- Words like "received", "got paid", "earned", "salary" = income
 - Match the most relevant category from the list
 - If amount has $ sign, strip it
 - Return ONLY the JSON object, nothing else`;
 
-    const completion = await zai.chat.completions.create({
-      messages: [{ role: "user", content: prompt }],
-      thinking: { type: "disabled" },
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+        temperature: 0.1,
+      }),
     });
 
-    const content = completion.choices[0]?.message?.content || "";
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return NextResponse.json({ error: "Could not parse transaction" }, { status: 400 });
 

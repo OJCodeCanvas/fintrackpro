@@ -34,18 +34,8 @@ export async function POST(req: NextRequest) {
       byCategory.set(t.category.name, (byCategory.get(t.category.name) || 0) + t.amount);
     }
     const topCategories = Array.from(byCategory.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8)
       .map(([name, amount]) => ({ name, amount: Math.round(amount * 100) / 100 }));
-
-    // Monthly breakdown
-    const monthly: Record<string, { income: number; expense: number }> = {};
-    for (const t of transactions) {
-      const key = new Date(t.date).toLocaleDateString("en-US", { month: "short", year: "numeric" });
-      if (!monthly[key]) monthly[key] = { income: 0, expense: 0 };
-      if (t.type === "income") monthly[key].income += t.amount;
-      else monthly[key].expense += t.amount;
-    }
 
     const financialContext = {
       currency: user.currency,
@@ -57,21 +47,13 @@ export async function POST(req: NextRequest) {
         savingsRate: totalIncome > 0 ? Math.round(((totalIncome - totalExpense) / totalIncome) * 1000) / 10 : 0,
       },
       topExpenseCategories: topCategories,
-      monthlyBreakdown: Object.entries(monthly).map(([month, v]) => ({
-        month,
-        income: Math.round(v.income * 100) / 100,
-        expenses: Math.round(v.expense * 100) / 100,
-      })),
       accounts: accounts.map((a) => ({ name: a.name, type: a.type, balance: a.balance })),
-      activeBudgets: budgets.map((b) => ({ category: b.category.name, limit: b.amount, month: b.month, year: b.year })),
+      activeBudgets: budgets.map((b) => ({ category: b.category.name, limit: b.amount })),
       savingsGoals: goals.map((g) => ({ name: g.name, target: g.targetAmount, current: g.currentAmount, progress: Math.round((g.currentAmount / g.targetAmount) * 100) })),
       upcomingBills: bills.slice(0, 5).map((b) => ({ name: b.name, amount: b.amount, dueDate: b.dueDate })),
       recentTransactions: transactions.slice(0, 10).map((t) => ({
         date: new Date(t.date).toISOString().split("T")[0],
-        type: t.type,
-        category: t.category.name,
-        amount: t.amount,
-        notes: t.notes,
+        type: t.type, category: t.category.name, amount: t.amount, notes: t.notes,
       })),
     };
 
@@ -80,21 +62,28 @@ export async function POST(req: NextRequest) {
 User's Financial Data:
 ${JSON.stringify(financialContext, null, 2)}`;
 
-    const ZAI = (await import("z-ai-web-dev-sdk")).default;
-    const zai = await ZAI.create();
-
     const messages = [
-      { role: "assistant" as const, content: systemPrompt },
+      { role: "system", content: systemPrompt },
       ...(history || []),
-      { role: "user" as const, content: message },
+      { role: "user", content: message },
     ];
 
-    const completion = await zai.chat.completions.create({
-      messages,
-      thinking: { type: "disabled" },
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.1-8b-instant",
+        messages,
+        max_tokens: 300,
+        temperature: 0.7,
+      }),
     });
 
-    const reply = completion.choices[0]?.message?.content || "I couldn't process that. Please try again.";
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "I couldn't process that. Please try again.";
     return NextResponse.json({ reply });
   } catch (error) {
     console.error("Coach error:", error);
