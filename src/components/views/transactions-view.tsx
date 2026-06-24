@@ -70,7 +70,7 @@ export function TransactionsView() {
     setEditingTx(null);
     setModalOpen(false);
     setPrefill(tx);
-    setTimeout(() => setModalOpen(true), 50);
+    setTimeout(() => setModalOpen(true), 200);
   };
 
   const { data: categoriesData } = useQuery<{ categories: Category[] }>({
