@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Filter, Pencil, Trash2, ArrowUpRight, ArrowDownRight, X, TrendingUp, TrendingDown, Calendar } from "lucide-react";
+import { NLTransactionEntry } from "@/components/nl-transaction-entry";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,13 @@ export function TransactionsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [prefill, setPrefill] = useState<Partial<Transaction> | null>(null);
+
+  const handleNLParsed = (tx: Partial<Transaction>) => {
+    setEditingTx(null);
+    setPrefill(tx);
+    setModalOpen(true);
+  };
 
   const { data: categoriesData } = useQuery<{ categories: Category[] }>({
     queryKey: ["categories"],
@@ -145,6 +153,9 @@ export function TransactionsView() {
           <Plus className="w-4 h-4 mr-1" /> Add Transaction
         </Button>
       </div>
+
+      {/* Natural Language Entry */}
+      <NLTransactionEntry onParsed={handleNLParsed} />
 
       {/* Filters */}
       <Card>
@@ -268,8 +279,9 @@ export function TransactionsView() {
       {/* Add/Edit modal */}
       <TransactionModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => { setModalOpen(open); if (!open) setPrefill(null); }}
         editingTx={editingTx}
+        prefill={prefill}
         categories={categories}
         accounts={accounts}
       />
@@ -355,12 +367,14 @@ function TransactionModal({
   open,
   onOpenChange,
   editingTx,
+  prefill,
   categories,
   accounts,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingTx: Transaction | null;
+  prefill?: Partial<Transaction> | null;
   categories: Category[];
   accounts: Account[];
 }) {
@@ -383,25 +397,27 @@ function TransactionModal({
 
 function TransactionForm({
   editingTx,
+  prefill,
   categories,
   accounts,
   onDone,
 }: {
   editingTx: Transaction | null;
+  prefill?: Partial<Transaction> | null;
   categories: Category[];
   accounts: Account[];
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [type, setType] = useState<"income" | "expense">(editingTx?.type ?? "expense");
-  const [amount, setAmount] = useState(editingTx ? String(editingTx.amount) : "");
-  const [categoryId, setCategoryId] = useState(editingTx?.categoryId ?? "");
-  const [accountId, setAccountId] = useState(editingTx?.accountId ?? "");
+  const [type, setType] = useState<"income" | "expense">(editingTx?.type ?? prefill?.type ?? "expense");
+  const [amount, setAmount] = useState(editingTx ? String(editingTx.amount) : prefill?.amount ? String(prefill.amount) : "");
+  const [categoryId, setCategoryId] = useState(editingTx?.categoryId ?? prefill?.categoryId ?? "");
+  const [accountId, setAccountId] = useState(editingTx?.accountId ?? prefill?.accountId ?? "");
   const [date, setDate] = useState(
-    editingTx ? editingTx.date.split("T")[0] : new Date().toISOString().split("T")[0]
+    editingTx ? editingTx.date.split("T")[0] : prefill?.date ? prefill.date.split("T")[0] : new Date().toISOString().split("T")[0]
   );
-  const [notes, setNotes] = useState(editingTx?.notes ?? "");
-  const [tags, setTags] = useState(editingTx?.tags ?? "");
+  const [notes, setNotes] = useState(editingTx?.notes ?? prefill?.notes ?? "");
+  const [tags, setTags] = useState(editingTx?.tags ?? prefill?.tags ?? "");
 
   const filteredCategories = categories.filter((c) => c.type === type);
 

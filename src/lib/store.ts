@@ -12,7 +12,8 @@ export type View =
   | "goals"
   | "bills"
   | "accounts"
-  | "insights";
+  | "insights"
+  | "coach";
 
 export interface CurrentUser {
   id: string;

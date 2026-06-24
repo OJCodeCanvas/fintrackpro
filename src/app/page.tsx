@@ -14,6 +14,7 @@ import { GoalsView } from "@/components/views/goals-view";
 import { BillsView } from "@/components/views/bills-view";
 import { AccountsView } from "@/components/views/accounts-view";
 import { InsightsView } from "@/components/views/insights-view";
+import { CoachView } from "@/components/views/coach-view";
 import { apiFetch } from "@/lib/api-client";
 import { useAppStore, CurrentUser } from "@/lib/store";
 
@@ -72,6 +73,7 @@ export default function Home() {
           {view === "bills" && <BillsView />}
           {view === "accounts" && <AccountsView />}
           {view === "insights" && <InsightsView />}
+          {view === "coach" && <CoachView />}
         </motion.div>
       </AnimatePresence>
     </AppShell>

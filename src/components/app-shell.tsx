@@ -20,6 +20,7 @@ import {
   Receipt,
   Landmark,
   Sparkles,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -65,6 +66,7 @@ const navSections: Array<{ title?: string; items: Array<{ id: View; label: strin
     items: [
       { id: "reports", label: "Reports", icon: BarChart3 },
       { id: "insights", label: "AI Insights", icon: Sparkles },
+      { id: "coach", label: "Money Coach", icon: MessageCircle },
     ],
   },
 ];
