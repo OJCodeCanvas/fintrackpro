@@ -383,7 +383,7 @@ function TransactionModal({
   // The Dialog content unmounts when closed, so we can safely use a key-based
   // inner form that re-initializes its state from props on each open.
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
       <DialogContent className="sm:max-w-md">
         <TransactionForm
           key={editingTx?.id ?? (prefill ? `prefill-${prefill.amount}-${prefill.categoryId}` : "new")}
