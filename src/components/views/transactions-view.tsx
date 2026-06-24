@@ -388,6 +388,7 @@ function TransactionModal({
         <TransactionForm
           key={editingTx?.id ?? (prefill ? `prefill-${prefill.amount}-${prefill.categoryId}` : "new")}
           editingTx={editingTx}
+          prefill={prefill}
           categories={categories}
           accounts={accounts}
           onDone={() => onOpenChange(false)}
