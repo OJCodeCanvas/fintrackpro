@@ -66,6 +66,7 @@ export function TransactionsView() {
   const [prefill, setPrefill] = useState<Partial<Transaction> | null>(null);
 
   const handleNLParsed = (tx: Partial<Transaction>) => {
+    console.log("NL PARSED:", JSON.stringify(tx));
     setEditingTx(null);
     setModalOpen(false);
     setPrefill(tx);
